@@ -2,6 +2,7 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 
 class Ride {
   final String id;
+  final String? deviceId; // Device UUID for user association
   final DateTime startTime;
   final DateTime? endTime;
   final double distance;
@@ -15,6 +16,7 @@ class Ride {
 
   Ride({
     required this.id,
+    this.deviceId,
     required this.startTime,
     this.endTime,
     required this.distance,
@@ -30,6 +32,7 @@ class Ride {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'deviceId': deviceId,
       'startTime': startTime.millisecondsSinceEpoch,
       'endTime': endTime?.millisecondsSinceEpoch,
       'distance': distance,
@@ -49,6 +52,7 @@ class Ride {
   factory Ride.fromJson(Map<String, dynamic> json) {
     return Ride(
       id: json['id'],
+      deviceId: json['deviceId'],
       startTime: DateTime.fromMillisecondsSinceEpoch(json['startTime']),
       endTime: json['endTime'] != null 
           ? DateTime.fromMillisecondsSinceEpoch(json['endTime'])

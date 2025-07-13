@@ -1,6 +1,28 @@
 name: one_wheel_app
 description: "A mobile application for OneWheel riders to track stats and map rides."
-# The following line prevents the package from being accidentally published to
+# The following line pre# For details regarding fonts from package dependencies,
+# see https://flutter.dev/to/font-from-package
+
+# Flutter Launcher Icons configuration
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icons/owai96.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/icons/owai96.png"
+    background_color: "#0A0A0A"
+    theme_color: "#00D4FF"
+  windows:
+    generate: true
+    image_path: "assets/icons/owai96.png"
+    icon_size: 48
+  macos:
+    generate: true
+    image_path: "assets/icons/owai96.png"
+
+# This prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
@@ -16,11 +38,13 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: ^3.8.1
 
+assets:
+  - assets/icons/owai96.png
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
 # consider running `flutter pub upgrade --major-versions`. Alternatively,
@@ -63,6 +87,13 @@ dependencies:
   # HTTP requests (for future API integration)
   http: ^1.2.2
   
+  # Bluetooth Low Energy
+  flutter_blue_plus: ^1.35.5
+  crypto: ^3.0.3
+  
+  # Device identification
+  device_info_plus: ^10.1.2
+  
   # Icons
   font_awesome_flutter: ^10.7.0
 
@@ -76,6 +107,9 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  
+  # Icon generation
+  flutter_launcher_icons: ^0.14.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

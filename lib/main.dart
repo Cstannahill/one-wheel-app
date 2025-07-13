@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'providers/ride_provider.dart';
+import 'providers/badge_provider.dart';
+import 'providers/user_provider.dart';
+import 'services/onewheel_ble_service.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/rides_screen.dart';
 import 'screens/map_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/badge_screen.dart';
 
 void main() {
   runApp(const OneWheelApp());
@@ -18,7 +22,10 @@ class OneWheelApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => RideProvider()..generateDummyRides()),
+        ChangeNotifierProvider(create: (_) => UserProvider()..initialize()),
+        ChangeNotifierProvider(create: (_) => RideProvider()..syncRidesFromServer()),
+        ChangeNotifierProvider(create: (_) => BadgeProvider()..loadBadges()),
+        ChangeNotifierProvider(create: (_) => OnewheelBleService()),
       ],
       child: MaterialApp.router(
         title: 'OneWheel Tracker',
@@ -112,6 +119,10 @@ final _router = GoRouter(
           builder: (context, state) => const RidesScreen(),
         ),
         GoRoute(
+          path: '/badges',
+          builder: (context, state) => const BadgeScreen(),
+        ),
+        GoRoute(
           path: '/map',
           builder: (context, state) => const MapScreen(),
         ),
@@ -148,6 +159,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       label: 'Rides',
     ),
     const NavigationDestination(
+      icon: Icon(Icons.stars_outlined),
+      selectedIcon: Icon(Icons.stars),
+      label: 'Badges',
+    ),
+    const NavigationDestination(
       icon: Icon(Icons.map_outlined),
       selectedIcon: Icon(Icons.map),
       label: 'Map',
@@ -159,7 +175,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     ),
   ];
 
-  final List<String> _routes = ['/', '/rides', '/map', '/settings'];
+  final List<String> _routes = ['/', '/rides', '/badges', '/map', '/settings'];
 
   @override
   Widget build(BuildContext context) {

@@ -5,13 +5,20 @@ import 'providers/ride_provider.dart';
 import 'providers/badge_provider.dart';
 import 'providers/user_provider.dart';
 import 'services/onewheel_ble_service.dart';
+import 'utils/logging.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/rides_screen.dart';
 import 'screens/map_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/badge_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize logging
+  await FileLogger.init();
+  FileLogger.log('OneWheel App started');
+  
   runApp(const OneWheelApp());
 }
 

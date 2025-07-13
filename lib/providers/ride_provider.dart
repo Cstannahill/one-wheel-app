@@ -6,6 +6,9 @@ import '../models/ride.dart';
 import '../models/onewheel_stats.dart';
 import '../models/ride_insights.dart';
 import '../services/ride_analytics_service.dart';
+import '../services/onewheel_ble_service.dart';
+import '../services/user_identification_service.dart';
+import '../services/onewheel_api_service.dart';
 import '../utils/unit_converter.dart';
 import 'dart:io' show Platform;
 
@@ -21,6 +24,10 @@ class RideProvider with ChangeNotifier {
   Position? _lastPosition;
   DateTime? _lastPositionTime;
   
+  // OneWheel BLE integration
+  OnewheelBleService? _bleService;
+  StreamSubscription<OnewheelData>? _bleDataStream;
+  
   // Analytics and insights
   Map<String, RideInsights> _rideInsights = {};
   bool _analyticsEnabled = true;
@@ -33,6 +40,40 @@ class RideProvider with ChangeNotifier {
   Map<String, RideInsights> get rideInsights => _rideInsights;
   bool get analyticsEnabled => _analyticsEnabled;
 
+  // Set BLE service for real data integration
+  void setBleService(OnewheelBleService bleService) {
+    _bleService = bleService;
+    
+    // Listen to BLE data stream
+    _bleDataStream?.cancel();
+    _bleDataStream = bleService.dataStream.listen((data) {
+      _updateStatsFromBleData(data);
+    });
+  }
+  
+  // Update stats from real BLE data
+  void _updateStatsFromBleData(OnewheelData data) {
+    _currentStats = OneWheelStats(
+      speed: UnitConverter.kmhToMph(data.speed), // Convert to MPH for US users
+      battery: data.batteryPercent.toDouble(),
+      temperature: UnitConverter.celsiusToFahrenheit(data.motorTemperature), // Convert to Fahrenheit
+      pitch: data.pitch,
+      roll: data.roll,
+      yaw: data.yaw,
+      rpm: data.rpm.toDouble(),
+      isConnected: _bleService?.isConnected ?? false,
+      isCharging: data.isCharging,
+      tripDistance: UnitConverter.kmToMiles(data.tripDistance), // Convert to miles
+      lifetimeDistance: UnitConverter.kmToMiles(data.lifetimeDistance),
+      rideMode: data.rideMode,
+      voltage: data.batteryVoltage,
+      current: data.currentAmps,
+      lastUpdated: DateTime.now(),
+    );
+    
+    notifyListeners();
+  }
+
   // Total statistics
   double get totalDistance => _rides.fold(0, (sum, ride) => sum + ride.distance);
   int get totalRides => _rides.length;
@@ -43,6 +84,9 @@ class RideProvider with ChangeNotifier {
     if (_isRiding) return;
 
     try {
+      // Get device ID for user association
+      final deviceId = await UserIdentificationService.instance.getDeviceId();
+      
       LatLng startLocation;
       
       // Try to get actual location for real tracking
@@ -75,6 +119,7 @@ class RideProvider with ChangeNotifier {
       _currentRoute = [startLocation];
       _currentRide = Ride(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
+        deviceId: deviceId, // Associate ride with device ID
         startTime: DateTime.now(),
         distance: 0,
         maxSpeed: 0,
@@ -374,11 +419,15 @@ class RideProvider with ChangeNotifier {
   }
 
   // Generate dummy rides for testing
-  void generateDummyRides() {
+  Future<void> generateDummyRides() async {
+    // Get device ID for user association
+    final deviceId = await UserIdentificationService.instance.getDeviceId();
+    
     final now = DateTime.now();
     final dummyRides = [
       Ride(
         id: '1',
+        deviceId: deviceId,
         startTime: now.subtract(Duration(days: 2)),
         endTime: now.subtract(Duration(days: 2, hours: -1)),
         distance: 9.6, // miles
@@ -396,6 +445,7 @@ class RideProvider with ChangeNotifier {
       ),
       Ride(
         id: '2',
+        deviceId: deviceId,
         startTime: now.subtract(Duration(days: 1)),
         endTime: now.subtract(Duration(days: 1, hours: -1, minutes: -30)),
         distance: 13.7, // miles
@@ -413,6 +463,7 @@ class RideProvider with ChangeNotifier {
       ),
       Ride(
         id: '3',
+        deviceId: deviceId,
         startTime: now.subtract(Duration(hours: 3)),
         endTime: now.subtract(Duration(hours: 2, minutes: 15)),
         distance: 5.4, // miles
@@ -432,5 +483,76 @@ class RideProvider with ChangeNotifier {
     
     _rides.addAll(dummyRides);
     notifyListeners();
+  }
+
+  /// Sync rides from the OneWheel API server
+  Future<void> syncRidesFromServer() async {
+    try {
+      print('🔄 Syncing rides from OneWheel API...');
+      
+      // Check API health first
+      final isHealthy = await OneWheelApiService.checkHealth();
+      if (!isHealthy) {
+        print('❌ OneWheel API is not healthy, skipping sync');
+        return;
+      }
+      
+      // Fetch rides from server
+      final serverRides = await OneWheelApiService.getRides(page: 1, pageSize: 50);
+      if (serverRides != null && serverRides.isNotEmpty) {
+        // Merge server rides with local rides (avoid duplicates)
+        final localRideIds = _rides.map((r) => r.id).toSet();
+        final newRides = serverRides.where((serverRide) => !localRideIds.contains(serverRide.id)).toList();
+        
+        if (newRides.isNotEmpty) {
+          _rides.addAll(newRides);
+          _rides.sort((a, b) => b.startTime.compareTo(a.startTime)); // Sort by date descending
+          notifyListeners();
+          
+          print('✅ Synced ${newRides.length} new rides from server');
+        } else {
+          print('📱 No new rides to sync from server');
+        }
+      } else {
+        print('📱 No rides found on server');
+      }
+      
+    } catch (e) {
+      print('❌ Error syncing rides from server: $e');
+    }
+  }
+
+  /// Upload local rides to server
+  Future<void> uploadLocalRidesToServer() async {
+    try {
+      print('📤 Uploading local rides to OneWheel API...');
+      
+      // Check API health first
+      final isHealthy = await OneWheelApiService.checkHealth();
+      if (!isHealthy) {
+        print('❌ OneWheel API is not healthy, skipping upload');
+        return;
+      }
+      
+      int uploadedCount = 0;
+      for (final ride in _rides) {
+        try {
+          final success = await OneWheelApiService.uploadRide(ride);
+          if (success) {
+            uploadedCount++;
+          }
+          
+          // Add small delay to avoid overwhelming the server
+          await Future.delayed(const Duration(milliseconds: 500));
+        } catch (e) {
+          print('❌ Failed to upload ride ${ride.id}: $e');
+        }
+      }
+      
+      print('✅ Uploaded $uploadedCount rides to server');
+      
+    } catch (e) {
+      print('❌ Error uploading rides to server: $e');
+    }
   }
 }

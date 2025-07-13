@@ -9,6 +9,10 @@ class OneWheelStats {
   final double roll;
   final double yaw;
   final bool isConnected;
+  final bool isCharging;
+  final double tripDistance;
+  final double lifetimeDistance;
+  final String rideMode;
   final DateTime lastUpdated;
 
   OneWheelStats({
@@ -22,6 +26,10 @@ class OneWheelStats {
     required this.roll,
     required this.yaw,
     this.isConnected = false,
+    this.isCharging = false,
+    this.tripDistance = 0.0,
+    this.lifetimeDistance = 0.0,
+    this.rideMode = 'Classic',
     required this.lastUpdated,
   });
 
@@ -36,6 +44,10 @@ class OneWheelStats {
     double? roll,
     double? yaw,
     bool? isConnected,
+    bool? isCharging,
+    double? tripDistance,
+    double? lifetimeDistance,
+    String? rideMode,
     DateTime? lastUpdated,
   }) {
     return OneWheelStats(
@@ -49,6 +61,10 @@ class OneWheelStats {
       roll: roll ?? this.roll,
       yaw: yaw ?? this.yaw,
       isConnected: isConnected ?? this.isConnected,
+      isCharging: isCharging ?? this.isCharging,
+      tripDistance: tripDistance ?? this.tripDistance,
+      lifetimeDistance: lifetimeDistance ?? this.lifetimeDistance,
+      rideMode: rideMode ?? this.rideMode,
       lastUpdated: lastUpdated ?? this.lastUpdated,
     );
   }
@@ -67,6 +83,10 @@ class OneWheelStats {
       roll: (-3 + (DateTime.now().millisecond % 60) / 10).clamp(-10, 10),
       yaw: (DateTime.now().millisecond % 360).toDouble(),
       isConnected: true,
+      isCharging: false,
+      tripDistance: (2.5 + (DateTime.now().minute % 10) / 2), // miles
+      lifetimeDistance: 1234.5, // miles
+      rideMode: 'Classic',
       lastUpdated: now,
     );
   }

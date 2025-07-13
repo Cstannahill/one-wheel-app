@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/ride_provider.dart';
+import '../providers/user_provider.dart';
+import '../services/onewheel_ble_service.dart';
+import 'onewheel_connection_screen.dart';
+import 'user_profile_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -24,6 +28,109 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // OneWheel Connection Section
+          _buildSection(
+            context,
+            'OneWheel Connection',
+            [
+              Consumer<OnewheelBleService>(
+                builder: (context, bleService, child) {
+                  return ListTile(
+                    leading: Icon(
+                      bleService.isConnected ? Icons.bluetooth_connected : Icons.bluetooth,
+                      color: bleService.isConnected ? Colors.green : const Color(0xFF7C4DFF),
+                    ),
+                    title: Text(
+                      bleService.isConnected 
+                        ? 'Connected to ${bleService.connectedDevice?.platformName ?? "OneWheel"}' 
+                        : 'Connect OneWheel',
+                      style: const TextStyle(color: Color(0xFFE0E0E0)),
+                    ),
+                    subtitle: Text(
+                      bleService.isConnected 
+                        ? 'Receiving real-time data'
+                        : 'Tap to scan and connect',
+                      style: const TextStyle(color: Color(0xFF757575)),
+                    ),
+                    trailing: Icon(
+                      Icons.arrow_forward_ios,
+                      color: const Color(0xFF7C4DFF),
+                      size: 16,
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const OnewheelConnectionScreen(),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // User Profile Section
+          _buildSection(
+            context,
+            'User Profile',
+            [
+              Consumer<UserProvider>(
+                builder: (context, userProvider, child) {
+                  final displayInfo = userProvider.displayInfo;
+                  
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: const Color(0xFF00D4FF).withOpacity(0.2),
+                      child: Text(
+                        displayInfo['initials'],
+                        style: const TextStyle(
+                          color: Color(0xFF00D4FF),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      displayInfo['displayName'],
+                      style: const TextStyle(
+                        color: Color(0xFFE0E0E0),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    subtitle: Text(
+                      displayInfo['hasProfile'] 
+                        ? 'Profile complete' 
+                        : 'Tap to add profile information',
+                      style: TextStyle(
+                        color: displayInfo['hasProfile'] 
+                          ? const Color(0xFF00FF88) 
+                          : const Color(0xFFB0B0B0),
+                      ),
+                    ),
+                    trailing: const Icon(
+                      Icons.arrow_forward_ios,
+                      color: Color(0xFF7C4DFF),
+                      size: 16,
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const UserProfileScreen(),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 24),
+          
           // App Info Section
           _buildSection(
             context,
@@ -41,58 +148,6 @@ class SettingsScreen extends StatelessWidget {
               ),
             ],
           ),
-          
-          const SizedBox(height: 24),
-          
-          // OneWheel Connection Section
-          _buildSection(
-            context,
-            'OneWheel Connection',
-            [
-              ListTile(
-                leading: const Icon(
-                  Icons.bluetooth,
-                  color: Color(0xFF7C4DFF),
-                ),
-                title: const Text(
-                  'Bluetooth Status',
-                  style: TextStyle(
-                    color: Color(0xFFE0E0E0),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                subtitle: const Text(
-                  'Currently using dummy data',
-                  style: TextStyle(color: Color(0xFFB0B0B0)),
-                ),
-                trailing: Switch(
-                  value: false,
-                  onChanged: null, // Disabled for now
-                ),
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.search,
-                  color: Color(0xFF00FF88),
-                ),
-                title: const Text(
-                  'Scan for OneWheel',
-                  style: TextStyle(
-                    color: Color(0xFFE0E0E0),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                subtitle: const Text(
-                  'Search for nearby OneWheel boards',
-                  style: TextStyle(color: Color(0xFFB0B0B0)),
-                ),
-                onTap: () {
-                  _showComingSoonDialog(context, 'OneWheel scanning will be available in a future update.');
-                },
-              ),
-            ],
-          ),
-          
           const SizedBox(height: 24),
           
           // Data Management Section

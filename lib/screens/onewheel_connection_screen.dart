@@ -26,8 +26,31 @@ class _OnewheelConnectionScreenState extends State<OnewheelConnectionScreen> {
   }
 
   void _checkBluetoothState() async {
-    final adapterState = await FlutterBluePlus.adapterState.first;
-    final isOn = adapterState == BluetoothAdapterState.on;
+    bool isOn = false;
+    
+    try {
+      // Enhanced Bluetooth state checking with multiple attempts
+      final adapterState = await FlutterBluePlus.adapterState.first
+          .timeout(const Duration(seconds: 3));
+      isOn = adapterState == BluetoothAdapterState.on;
+      print('Bluetooth adapter state: $adapterState');
+    } catch (e) {
+      print('Error checking Bluetooth adapter state: $e');
+      
+      // Try alternative detection for older devices
+      try {
+        // Attempt a brief scan test
+        FlutterBluePlus.startScan(timeout: const Duration(seconds: 1));
+        await Future.delayed(const Duration(milliseconds: 500));
+        await FlutterBluePlus.stopScan();
+        isOn = true; // If scan works, Bluetooth is likely on
+        print('Bluetooth detected as ON via scan test');
+      } catch (scanError) {
+        print('Scan test also failed: $scanError');
+        isOn = false;
+      }
+    }
+    
     setState(() {
       _isBluetoothOn = isOn;
     });
@@ -248,11 +271,81 @@ class _OnewheelConnectionScreenState extends State<OnewheelConnectionScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (_diagnosticInfo != null) ...[
-                _buildDiagnosticItem('Bluetooth Available', _diagnosticInfo!['bluetoothAvailable']?.toString() ?? 'Unknown'),
-                _buildDiagnosticItem('Bluetooth On', _diagnosticInfo!['bluetoothOn']?.toString() ?? 'Unknown'),
+                _buildDiagnosticItem('Bluetooth Supported', _diagnosticInfo!['bluetoothSupported']?.toString() ?? 'Unknown'),
+                _buildDiagnosticItem('Bluetooth Enabled', _diagnosticInfo!['bluetoothEnabled']?.toString() ?? 'Unknown'),
+                _buildDiagnosticItem('Adapter State', _diagnosticInfo!['adapterState']?.toString() ?? 'Unknown'),
+                _buildDiagnosticItem('Device Model', _diagnosticInfo!['deviceModel']?.toString() ?? 'Unknown'),
+                _buildDiagnosticItem('Android Version', _diagnosticInfo!['deviceAndroidVersion']?.toString() ?? 'Unknown'),
+                _buildDiagnosticItem('SDK Version', _diagnosticInfo!['deviceSdkVersion']?.toString() ?? 'Unknown'),
+                const SizedBox(height: 8),
+                const Text('Permissions:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 4),
+                if (_diagnosticInfo!.containsKey('bluetoothScanPermission')) ...[
+                  // Android 12+ permissions
+                  _buildDiagnosticItem('Bluetooth Scan', _diagnosticInfo!['bluetoothScanPermission']?.toString() ?? 'Unknown'),
+                  _buildDiagnosticItem('Bluetooth Connect', _diagnosticInfo!['bluetoothConnectPermission']?.toString() ?? 'Unknown'),
+                ] else ...[
+                  // Legacy permissions
+                  _buildDiagnosticItem('Bluetooth Permission', _diagnosticInfo!['bluetoothPermission']?.toString() ?? 'Unknown'),
+                  _buildDiagnosticItem('Location Permission', _diagnosticInfo!['locationPermission']?.toString() ?? 'Unknown'),
+                ],
+                const SizedBox(height: 8),
                 _buildDiagnosticItem('Total Devices Found', _diagnosticInfo!['totalDevicesFound']?.toString() ?? '0'),
                 _buildDiagnosticItem('OneWheel Devices Found', _diagnosticInfo!['onewheelDevicesFound']?.toString() ?? '0'),
                 const SizedBox(height: 8),
+                if (_diagnosticInfo!['bluetoothEnabled']?.toString().contains('unknown') == true ||
+                    _diagnosticInfo!['bluetoothEnabled']?.toString().contains('error') == true ||
+                    _diagnosticInfo!.containsKey('permissionError')) ...[
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Permission Issue Detected:',
+                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Your app may be missing Bluetooth permissions. Try:',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        const Text(
+                          '1. Go to Settings > Apps > OneWheel App > Permissions',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        const Text(
+                          '2. Enable all location and nearby device permissions',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        const Text(
+                          '3. Restart the app',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (_diagnosticInfo!['bluetoothEnabled']?.toString().contains('unknown') == true ||
+                    _diagnosticInfo!['bluetoothEnabled']?.toString().contains('error') == true) ...[
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'Note: Older Android devices may have different Bluetooth detection behavior. If your Bluetooth is actually on, try the "Scan Again" button.',
+                      style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 const Text('OneWheel Device Names:', style: TextStyle(fontWeight: FontWeight.bold)),
                 ...(_diagnosticInfo!['onewheelDeviceNames'] as List<dynamic>? ?? []).map((name) => Text('• $name')),
                 const SizedBox(height: 8),
